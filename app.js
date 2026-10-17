@@ -72,6 +72,8 @@ function updateOven(){
   const capacity=state.ovenTier===2?GAME.oven.tier2Capacity:GAME.oven.tier1Capacity;
   const remaining=Math.max(0,capacity-Math.min(capacity,state.ovenFilled));
   const p=production();
+  const progress=$("ovenProgress");
+  if(progress) progress.style.width=(Math.min(100,capacity>0?state.ovenFilled/capacity*100:0))+"%";
   $("ovenRemaining").textContent=fmt0(remaining);
   $("ovenTime").textContent=remaining===0?"Full":p>0?timeText(remaining/p):"—";
   $("ovenUpgrade").disabled=state.ovenTier===2;

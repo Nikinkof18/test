@@ -8,12 +8,9 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar"><div class="brand"><img class="brand-logo" src="logo.svg" alt="CryptoChef logo"><div><strong>CryptoChef <span class="brand-accent">Calculator</span></strong><span>Independent community tool</span></div></div></header>
+  <header class="topbar"><div class="brand"><img class="brand-logo" src="logo.svg" alt="CryptoChef logo"><div><strong><span class="brand-crypto">Crypto</span><span class="brand-accent">Chef</span></strong><span class="brand-subtitle">C A L C U L A T O R</span></div><div class="live-pill"><i></i> Live calculations</div></div></header>
   <main>
-    <section class="hero">
-      <div><div class="eyebrow">FREE COMMUNITY CALCULATOR</div><h1>Optimize your kitchen.</h1><p>Enter your chefs and current resources to calculate production, rewards, chef purchase times and oven fill time.</p></div>
-      <div class="hero-badge"><span>●</span> Live calculations</div>
-    </section>
+    <div class="dashboard-top">
     <section id="calculator" class="panel">
       <div class="panel-title"><div><span class="icon">⚙</span><h2>MY KITCHEN</h2></div><span class="chevron">⌃</span></div>
       <div class="calculator-body">
@@ -23,7 +20,7 @@
           <div class="reinvest-card"><div><strong>Reinvest Azure</strong><small>Convert Azure into Service Coins at +10%.</small></div><label class="switch"><input id="convertToggle" type="checkbox" checked><span></span></label></div>
         </div>
         <div class="ads-card">
-          <div class="ads-top"><div><strong>📺 Daily ad rewards</strong><small>Each ad gives 25 Service Coins instantly. Maximum 10 ads per day.</small></div><label class="switch"><input id="adsToggle" type="checkbox"><span></span></label></div>
+          <div class="ads-top"><div><strong>📺 Daily ad rewards</strong><small>Each ad gives 10 Service Coins instantly. Maximum 10 ads per day.</small></div><label class="switch"><input id="adsToggle" type="checkbox"><span></span></label></div>
           <div class="ads-content">
             <label class="ads-slider-label" for="adsPerDay">Ads watched per day: <strong><span id="adsPerDayValue">10</span>/10</strong></label>
             <input id="adsPerDay" type="range" min="0" max="10" step="1" value="10" disabled>
@@ -34,12 +31,7 @@
         <div class="section-label">YOUR CHEFS</div><div class="chef-grid" id="chefGrid"></div>
       </div>
     </section>
-    <section class="stats-grid">
-      <article class="stat main-stat"><span>🍽️</span><div><small>TOTAL PRODUCTION</small><strong id="dishesHour">0</strong><em>dishes / hour</em></div></article>
-      <article class="stat"><span>◉</span><div><small>SERVICE COINS</small><strong id="scHour">0</strong><em>/ hour (production)</em></div></article>
-      <article class="stat"><span>◈</span><div><small>AZURE</small><strong id="azureHour">0</strong><em>/ hour</em></div></article>
-      <article class="stat"><span>💵</span><div><small>VALUE</small><strong id="usdHour">$0</strong><em>/ hour</em></div></article>
-    </section>
+
     <section id="oven" class="panel">
       <div class="panel-title"><div><span class="icon">♨</span><h2>OVEN</h2></div></div>
       <div class="oven-body">
@@ -47,10 +39,17 @@
           <div class="oven-field"><label for="ovenTier">OVEN TIER</label><select id="ovenTier"><option value="1">Tier 1 — 2,000,000 dishes</option><option value="2">Tier 2 — 4,000,000 dishes</option></select></div>
           <div class="oven-field"><label for="ovenFilled">DISHES ALREADY IN OVEN</label><input id="ovenFilled" type="number" min="0" step="1" value="0"></div>
         </div>
-        <div class="oven-result"><div><small>TIME TO FILL OVEN</small><strong id="ovenTime">—</strong></div><div class="capacity"><small>REMAINING CAPACITY</small><strong id="ovenRemaining">2,000,000</strong></div></div>
+        <div class="oven-progress-track"><div id="ovenProgress" class="oven-progress-fill"></div></div><div class="oven-result"><div><small>TIME TO FILL OVEN</small><strong id="ovenTime">—</strong></div><div class="capacity"><small>REMAINING CAPACITY</small><strong id="ovenRemaining">2,000,000</strong></div></div>
         <button id="ovenUpgrade" class="oven-upgrade" type="button">Upgrade to Tier 2 — 200,000 SC</button>
         <p class="oven-note">Estimate uses your current dishes/hour production. The upgrade cost is shown for reference and is not deducted from your balance.</p>
       </div>
+    </section>
+    </div>
+    <section class="stats-grid">
+      <article class="stat main-stat"><span>🍽️</span><div><small>TOTAL PRODUCTION</small><strong id="dishesHour">0</strong><em>dishes / hour</em></div></article>
+      <article class="stat"><span>◉</span><div><small>SERVICE COINS</small><strong id="scHour">0</strong><em>/ hour (production)</em></div></article>
+      <article class="stat"><span>◈</span><div><small>AZURE</small><strong id="azureHour">0</strong><em>/ hour</em></div></article>
+      <article class="stat"><span>💵</span><div><small>VALUE</small><strong id="usdHour">$0</strong><em>/ hour</em></div></article>
     </section>
     <section class="two-col">
       <div class="panel"><div class="panel-title"><div><span class="icon">⏱</span><h2>TIME TO BUY A CHEF / UPGRADE AN OVEN</h2></div></div><div class="table-wrap"><table><thead><tr><th>Chef</th><th>Cost</th><th>Gain</th><th>Time to buy / upgrade</th></tr></thead><tbody id="nextChefBody"></tbody></table></div></div>
@@ -65,7 +64,7 @@
       <div class="panel-title"><div><span class="icon">?</span><h2>HOW THE CALCULATOR WORKS</h2></div></div>
       <details open><summary>How are rewards calculated?</summary><p>Every 1,000 dishes produced gives 5 Service Coins and 5 Azure. 10,000 Azure equals $1.</p></details>
       <details><summary>How does Azure reinvestment work?</summary><p>When enabled, Azure is treated as reinvested into Service Coins at a 10% bonus: 1 Azure becomes 1.1 Service Coins. This is used when calculating the time to reach the next chef.</p></details>
-      <details><summary>How do ad rewards work?</summary><p>Each ad gives 25 Service Coins instantly, up to 10 ads (250 Service Coins) per day. The calculator assumes the selected ads are watched immediately, and for longer estimates adds the same bonus again every 24 hours.</p></details>
+      <details><summary>How do ad rewards work?</summary><p>Each ad gives 10 Service Coins instantly, up to 10 ads (100 Service Coins) per day. The calculator assumes the selected ads are watched immediately, and for longer estimates adds the same bonus again every 24 hours.</p></details>
     </section>
     <footer>CryptoChef Calculator is an independent community calculator. Game values can be changed in <code>data.js</code>.</footer>
   </main>
