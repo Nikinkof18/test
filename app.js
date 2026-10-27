@@ -1,12 +1,14 @@
 const $ = id => document.getElementById(id);
 const fmt = (n,d=2) => Number(n).toLocaleString("en-US",{maximumFractionDigits:d});
 const fmt0 = n => Number(n).toLocaleString("en-US",{maximumFractionDigits:0});
-const state = {counts:{},sc:0,azure:0,convert:true,adsEnabled:false,adsPerDay:10,ovenTier:1,ovenFilled:0};
+const state = {counts:{},animalCounts:{},feedsPerDay:2,sc:0,azure:0,convert:true,adsEnabled:false,adsPerDay:10,ovenTier:1,ovenFilled:0};
 
 function save(){try{localStorage.setItem("chefcalc",JSON.stringify(state));}catch(e){}}
 function load(){
   try{Object.assign(state,JSON.parse(localStorage.getItem("chefcalc")||"{}"));}catch(e){}
   GAME.chefs.forEach(c=>state.counts[c.name]=Math.max(0,Math.floor(Number(state.counts[c.name])||0)));
+  GAME.animals.forEach(a=>state.animalCounts[a.name]=Math.max(0,Math.floor(Number(state.animalCounts[a.name])||0)));
+  state.feedsPerDay=[1,1.5,2,2.5,3].includes(Number(state.feedsPerDay))?Number(state.feedsPerDay):2;
   state.adsPerDay=Math.max(0,Math.min(GAME.maxAdsPerDay||10,Math.floor(Number(state.adsPerDay??10)||0)));
   $("scInput").value=Number(state.sc||0);$("azureInput").value=Number(state.azure||0);
   $("convertToggle").checked=state.convert!==false;$("adsToggle").checked=state.adsEnabled===true;
@@ -14,11 +16,31 @@ function load(){
   state.ovenFilled=Math.max(0,Number(state.ovenFilled)||0);
   $("ovenTier").value=String(state.ovenTier);$("ovenFilled").value=state.ovenFilled;
   $("adsPerDay").value=state.adsPerDay;$("adsPerDayValue").textContent=state.adsPerDay;$("adsPerDay").disabled=!state.adsEnabled;
+  $("feedsPerDay").value=String(state.feedsPerDay);
 }
 function production(){return GAME.chefs.reduce((s,c)=>s+c.production*(state.counts[c.name]||0),0);}
 function rewardsPerHour(){const p=production();return{sc:p/GAME.rewardDishes*GAME.serviceCoinsPerReward,azure:p/GAME.rewardDishes*GAME.azurePerReward};}
 function currentSC(){return Math.max(0,state.sc)+(state.convert?Math.max(0,state.azure)*(1+GAME.azureToScBonus):0);}
-function effectiveSCPerHour(){const r=rewardsPerHour();return r.sc+(state.convert?r.azure*(1+GAME.azureToScBonus):0);}
+function effectiveKitchenSCPerHour(){const r=rewardsPerHour();return r.sc+(state.convert?r.azure*(1+GAME.azureToScBonus):0);}
+function farmTotals(){
+  const feeds=Number(state.feedsPerDay)||0;
+  let dishesPerDay=0,productsPerDay=0,salesPerDay=0;
+  const rows=GAME.animals.map(a=>{
+    const count=Number(state.animalCounts[a.name])||0;
+    const feedsAnimal=count*feeds;
+    const dishes=count*feeds*a.dishesPerFeed;
+    const products=feedsAnimal;
+    const sales=products*a.sellPrice;
+    dishesPerDay+=dishes;productsPerDay+=products;salesPerDay+=sales;
+    return {animal:a,count,feeds:feedsAnimal,dishes,products,sales};
+  });
+  const foregoneSC=dishesPerDay/GAME.rewardDishes*GAME.serviceCoinsPerReward;
+  const foregoneAzure=dishesPerDay/GAME.rewardDishes*GAME.azurePerReward;
+  const opportunityCost=foregoneSC+(state.convert?foregoneAzure*(1+GAME.azureToScBonus):0);
+  return {rows,dishesPerDay,productsPerDay,salesPerDay,foregoneSC,foregoneAzure,opportunityCost,netPerDay:salesPerDay-opportunityCost};
+}
+function effectiveSCPerHour(){return effectiveKitchenSCPerHour()+farmTotals().netPerDay/24;}
+function netAzurePerHour(){const r=rewardsPerHour();return r.azure-farmTotals().foregoneAzure/24;}
 function adBonus(){return state.adsEnabled?state.adsPerDay*(GAME.serviceCoinsPerAd||25):0;}
 
 /* Ads are credited instantly: assume today's selected ads are watched at t=0.
@@ -52,6 +74,18 @@ function renderChefs(){
   $("chefGrid").innerHTML=GAME.chefs.map((c,i)=>`<div class="chef-card"><div class="name">${c.emoji} ${c.name}</div><small>${fmt(c.production,0)} dishes / hour • ${fmt0(c.cost)} SC</small><input type="number" min="0" step="1" value="${state.counts[c.name]||0}" data-chef="${i}" aria-label="${c.name} quantity"></div>`).join("");
   document.querySelectorAll("[data-chef]").forEach(inp=>inp.addEventListener("input",e=>{const c=GAME.chefs[Number(e.target.dataset.chef)];state.counts[c.name]=Math.max(0,Math.floor(Number(e.target.value)||0));update();}));
 }
+function renderAnimals(){
+  $("animalGrid").innerHTML=GAME.animals.map((a,i)=>`<div class="animal-card"><div class="animal-title">${a.emoji} ${a.name}</div><div class="animal-meta">${a.productEmoji} ${a.product} • ${fmt0(a.dishesPerFeed)} dishes/feed</div><label for="animal-${i}">ADULT ANIMALS</label><input id="animal-${i}" type="number" min="0" step="1" value="${state.animalCounts[a.name]||0}" data-animal="${i}" aria-label="Number of adult ${a.name}s"><div class="animal-sale">${fmt0(a.sellPrice)} SC per ${a.product.toLowerCase()}</div></div>`).join("");
+  document.querySelectorAll("[data-animal]").forEach(inp=>inp.addEventListener("input",e=>{const a=GAME.animals[Number(e.target.dataset.animal)];state.animalCounts[a.name]=Math.max(0,Math.floor(Number(e.target.value)||0));update();}));
+}
+function updateFarm(){
+  const f=farmTotals();
+  $("farmDishesDay").textContent=fmt0(f.dishesPerDay);
+  $("farmProductsDay").textContent=fmt(f.productsPerDay,1);
+  $("farmSalesDay").textContent=fmt(f.salesPerDay)+" SC";
+  $("farmNetDay").textContent=(f.netPerDay>=0?"+":"")+fmt(f.netPerDay)+" SC";
+  $("farmTableBody").innerHTML=f.rows.map(r=>`<tr><td class="chef-name">${r.animal.emoji} ${r.animal.name}</td><td>${fmt0(r.count)}</td><td>${fmt0(r.animal.dishesPerFeed)}</td><td>${fmt(r.feeds,1)}</td><td>${fmt(r.products,1)} ${r.animal.productEmoji}</td><td class="good">${fmt(r.sales)} SC</td></tr>`).join("");
+}
 function updateStats(){
   const p=production(),r=rewardsPerHour();
   $("dishesHour").textContent=fmt0(p);$("scHour").textContent=fmt(r.sc);$("azureHour").textContent=fmt(r.azure);
@@ -64,16 +98,14 @@ function renderTable(){
   $("nextChefBody").innerHTML=chefRows+ovenRow;
 }
 function updateWithdrawal(){
-  const dollars=Math.max(0,Number($("withdrawInput").value)||0),required=dollars*GAME.azurePerDollar,r=rewardsPerHour().azure;
+  const dollars=Math.max(0,Number($("withdrawInput").value)||0),required=dollars*GAME.azurePerDollar,r=netAzurePerHour();
   const hours=r>0?Math.max(0,(required-Math.max(0,state.azure))/r):Infinity;
   $("azureRequired").textContent=fmt0(required);$("withdrawTime").textContent=state.azure>=required?"Ready now":timeText(hours);
 }
 function updateOven(){
   const capacity=state.ovenTier===2?GAME.oven.tier2Capacity:GAME.oven.tier1Capacity;
   const remaining=Math.max(0,capacity-Math.min(capacity,state.ovenFilled));
-  const p=production();
-  const progress=$("ovenProgress");
-  if(progress) progress.style.width=(Math.min(100,capacity>0?state.ovenFilled/capacity*100:0))+"%";
+  const p=Math.max(0,production()-farmTotals().dishesPerDay/24);
   $("ovenRemaining").textContent=fmt0(remaining);
   $("ovenTime").textContent=remaining===0?"Full":p>0?timeText(remaining/p):"—";
   $("ovenUpgrade").disabled=state.ovenTier===2;
@@ -82,6 +114,7 @@ function updateOven(){
 function update(){
   state.sc=Math.max(0,Number($("scInput").value)||0);state.azure=Math.max(0,Number($("azureInput").value)||0);
   state.convert=$("convertToggle").checked;state.adsEnabled=$("adsToggle").checked;
+  state.feedsPerDay=Number($("feedsPerDay").value)||2;
   state.adsPerDay=Math.max(0,Math.min(GAME.maxAdsPerDay||10,Math.floor(Number($("adsPerDay").value)||0)));
   $("adsPerDayValue").textContent=state.adsPerDay;$("adsPerDay").disabled=!state.adsEnabled;
   state.ovenTier=Number($("ovenTier").value)===2?2:1;
@@ -89,9 +122,16 @@ function update(){
   const maxCapacity=state.ovenTier===2?GAME.oven.tier2Capacity:GAME.oven.tier1Capacity;
   state.ovenFilled=Math.min(state.ovenFilled,maxCapacity);
   if(Number($("ovenFilled").value)!==state.ovenFilled)$("ovenFilled").value=state.ovenFilled;
-  updateStats();renderTable();updateWithdrawal();updateOven();save();
+  updateStats();updateFarm();renderTable();updateWithdrawal();updateOven();save();
 }
-["scInput","azureInput","convertToggle","withdrawInput","adsToggle","adsPerDay","ovenTier","ovenFilled"].forEach(id=>{ $(id).addEventListener("input",update);$(id).addEventListener("change",update);});
+["scInput","azureInput","convertToggle","withdrawInput","adsToggle","adsPerDay","ovenTier","ovenFilled","feedsPerDay"].forEach(id=>{ $(id).addEventListener("input",update);$(id).addEventListener("change",update);});
 $("ovenUpgrade").addEventListener("click",()=>{if(state.ovenTier===1){$("ovenTier").value="2";update();}});
 document.querySelectorAll(".quick button").forEach(b=>b.addEventListener("click",()=>{$("withdrawInput").value=b.dataset.amount;update();}));
-load();renderChefs();update();
+document.querySelectorAll("[data-tab]").forEach(button=>button.addEventListener("click",()=>{
+  const tab=button.dataset.tab;
+  document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b===button));
+  document.querySelectorAll(".kitchen-page").forEach(el=>el.hidden=tab!=="kitchenPage");
+  $("farmPage").hidden=tab!=="farmPage";
+  window.scrollTo({top:0,behavior:"smooth"});
+}));
+load();renderChefs();renderAnimals();update();
